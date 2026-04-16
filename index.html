@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KS Multimedia Purchase System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root { --accent: #2c3e50; --bg: #f8f9fa; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: var(--bg); }
 
         /* --- EDITING MODE --- */
-        #mobile-editor { padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 120px; }
+        #mobile-editor { padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 140px; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
         h3 { margin-top: 0; color: var(--accent); border-bottom: 2px solid var(--bg); padding-bottom: 8px; font-size: 14px; text-transform: uppercase; }
         
@@ -40,28 +41,39 @@
         .btn-clear { background: #555; color: white; flex: 1; padding: 12px; border: none; border-radius: 8px; }
         .btn-save { background: #27ae60; color: white; flex: 2; padding: 12px; border: none; border-radius: 8px; font-weight: bold; }
 
-        /* --- SCREENSHOT MODE --- */
-        #ss-container { display: none; background: #555; min-height: 100vh; justify-content: center; padding: 20px 0; }
-        .a4-page { width: 210mm; min-height: 297mm; background: white; padding: 15mm; box-sizing: border-box; color: black; position: relative; }
-        .doc-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
-        .doc-logo { border: 2.5pt solid black; padding: 8px 12px; font-size: 24pt; font-weight: bold; }
+        /* --- PREVIEW & DOWNLOAD MODE --- */
+        #ss-container { display: none; background: #555; min-height: 100vh; flex-direction: column; align-items: center; padding: 20px 0; }
         
-        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }
-        td, th { border: 1px solid black; padding: 7px; font-size: 9.5pt; vertical-align: top; text-align: left; overflow: hidden; word-wrap: break-word; }
+        /* STRICT A4 DIMENSIONS TO FORCE 1 PAGE */
+        .a4-page { 
+            width: 210mm; 
+            height: 296mm; 
+            background: white; 
+            padding: 10mm; 
+            box-sizing: border-box; 
+            color: black; 
+            position: relative; 
+            overflow: hidden; 
+            margin-bottom: 80px;
+        }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
+        td, th { border: 1px solid black; padding: 5px; font-size: 9pt; vertical-align: top; text-align: left; overflow: hidden; }
         .bg-grey { background-color: #f2f2f2; font-weight: bold; }
         .val { font-weight: bold; color: black; }
         .minus { color: #d00; }
 
-        #out-sig-img { max-height: 80px; display: none; }
+        #out-sig-img { max-height: 70px; display: none; }
 
-        .btn-back { 
-            position: fixed; bottom: 20px; right: 20px; background: #e74c3c; 
-            color: white; border: none; padding: 12px 20px; border-radius: 50px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        .preview-footer {
+            position: fixed; bottom: 0; left: 0; right: 0; background: white; 
+            padding: 15px; display: flex; gap: 10px; justify-content: center; box-shadow: 0 -2px 10px rgba(0,0,0,0.2); z-index: 1001;
         }
+        .btn-dl { background: #27ae60; color: white; border: none; padding: 14px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; max-width: 200px; }
+        .btn-edit { background: #e74c3c; color: white; border: none; padding: 14px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; max-width: 200px; }
 
         @media screen and (max-width: 210mm) {
-            #ss-container { display: none; }
-            .a4-page { zoom: 0.45; } 
+            .a4-page { zoom: 0.42; } 
         }
     </style>
 </head>
@@ -69,113 +81,129 @@
 
     <div id="mobile-editor">
         <h2 style="text-align: center;">KS Purchase System</h2>
+        
         <div class="card">
             <h3>Seller Info</h3>
             <div class="field"><label>Seller Name</label><input type="text" id="in-name" oninput="sync()"></div>
             <div style="display:flex; gap:10px;">
                 <div class="field" style="flex:1"><label>NRIC/FIN</label><input type="text" id="in-nric" oninput="sync()"></div>
-                <div class="field" style="flex:1"><label>Phone Number</label><input type="text" id="in-phone" oninput="sync()"></div>
+                <div class="field" style="flex:1"><label>Phone No</label><input type="text" id="in-phone" oninput="sync()"></div>
             </div>
             <div class="field"><label>Address</label><textarea id="in-addr" rows="2" oninput="sync()"></textarea></div>
         </div>
 
         <div class="card">
-            <h3>Device Details</h3>
-            <div class="field">
-                <select id="in-count" onchange="toggleDeviceTwo(); sync();">
-                    <option value="1">1 Device</option>
-                    <option value="2">2 Devices</option>
-                </select>
-            </div>
+            <h3>Transaction</h3>
+            <div class="field"><label>Source</label><select id="in-source" onchange="sync()"><option>Direct</option><option>Sell-Up</option><option>MobileMart.io</option></select></div>
+            <div class="field"><label>Devices</label><select id="in-count" onchange="toggleDeviceTwo(); sync();"><option value="1">1 Device</option><option value="2">2 Devices</option></select></div>
+            
             <div id="dev1-editor">
+                <h3>DEVICE 1</h3>
                 <div class="field"><label>Model</label><input type="text" id="in-m1" oninput="sync()"></div>
-                <div class="field"><label>IMEI / Serial Number</label><input type="text" id="in-i1" oninput="sync()"></div>
-                <div style="display:flex; gap:10px;"><div class="field" style="flex:1"><label>Color</label><input type="text" id="in-c1" oninput="sync()"></div><div class="field" style="flex:1"><label>Battery Health %</label><input type="text" id="in-b1" oninput="sync()"></div></div>
-                <div style="display:flex; gap:10px;"><div class="field" style="flex:1"><label>Condition</label><select id="in-con1" onchange="sync()"><option>Premium</option><option>Excellent</option><option>Good</option><option>Fair</option></select></div><div class="field" style="flex:1"><label>Warranty Info</label><input type="text" id="in-w1" oninput="sync()"></div></div>
+                <div class="field"><label>IMEI/SN</label><input type="text" id="in-i1" oninput="sync()"></div>
+                <div style="display:flex; gap:10px;">
+                    <div class="field" style="flex:1"><label>Color</label><input type="text" id="in-c1" oninput="sync()"></div>
+                    <div class="field" style="flex:1"><label>Battery %</label><input type="text" id="in-b1" oninput="sync()"></div>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <div class="field" style="flex:1"><label>Condition</label><select id="in-con1" onchange="sync()"><option>Premium</option><option>Excellent</option><option>Good</option><option>Fair</option></select></div>
+                    <div class="field" style="flex:1"><label>Warranty</label><input type="text" id="in-w1" oninput="sync()"></div>
+                </div>
                 <div class="field"><label>Price (S$)</label><input type="number" id="in-p1" oninput="sync()"></div>
             </div>
-            <div id="dev2-editor" style="display:none; margin-top:15px; border-top: 1px dashed #ddd; padding-top:10px;">
+
+            <div id="dev2-editor" style="display:none; margin-top:10px; border-top:1px dashed #ccc; padding-top:10px;">
+                <h3>DEVICE 2</h3>
                 <div class="field"><label>Model</label><input type="text" id="in-m2" oninput="sync()"></div>
-                <div class="field"><label>IMEI / Serial Number</label><input type="text" id="in-i2" oninput="sync()"></div>
+                <div class="field"><label>IMEI/SN</label><input type="text" id="in-i2" oninput="sync()"></div>
+                <div style="display:flex; gap:10px;">
+                    <div class="field" style="flex:1"><label>Color</label><input type="text" id="in-c2" oninput="sync()"></div>
+                    <div class="field" style="flex:1"><label>Battery %</label><input type="text" id="in-b2" oninput="sync()"></div>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <div class="field" style="flex:1"><label>Condition</label><select id="in-con2" onchange="sync()"><option>Premium</option><option>Excellent</option><option>Good</option><option>Fair</option></select></div>
+                    <div class="field" style="flex:1"><label>Warranty</label><input type="text" id="in-w2" oninput="sync()"></div>
+                </div>
                 <div class="field"><label>Price (S$)</label><input type="number" id="in-p2" oninput="sync()"></div>
             </div>
         </div>
 
         <div class="card" style="background: #fffafa;">
             <h3>Deductions</h3>
-            <div id="deduction-list"><div class="deduction-entry"><input type="text" class="d-reason" placeholder="Reason" oninput="sync()"><input type="number" class="d-amt" placeholder="$" oninput="sync()"></div></div>
+            <div id="deduction-list">
+                <div class="deduction-entry"><input type="text" class="d-reason" placeholder="Reason" oninput="sync()"><input type="number" class="d-amt" placeholder="$" oninput="sync()"></div>
+            </div>
             <button onclick="addDeductionRow()" style="width:100%; padding:8px; border:1px dashed #ccc; background:none; border-radius:8px;">+ Add Deduction</button>
         </div>
 
         <div class="card">
             <h3>Payment</h3>
             <div class="field"><select id="in-paymethod" onchange="togglePayNow(); sync();"><option value="Cash">Cash</option><option value="PayNow">PayNow</option></select></div>
-            <div id="paynow-box" style="display:none;"><div class="field"><input type="text" id="in-pn-name" placeholder="PayNow Name" oninput="sync()"></div><div class="field"><input type="text" id="in-pn-phone" placeholder="PayNow Phone" oninput="sync()"></div></div>
-            <div class="field"><label>Police Record Reference</label><input type="text" id="in-police" oninput="sync()"></div>
+            <div id="paynow-box" style="display:none;"><div class="field"><input type="text" id="in-pn-name" placeholder="Name" oninput="sync()"></div><div class="field"><input type="text" id="in-pn-phone" placeholder="Phone" oninput="sync()"></div></div>
+            <div class="field"><label>Police Record</label><input type="text" id="in-police" oninput="sync()"></div>
         </div>
 
         <div class="sticky-bar"><button class="btn-primary" onclick="showSS(true)">Preview & Sign</button></div>
     </div>
 
     <div id="sig-modal">
-        <h3 style="color:white; margin-bottom:10px;">SELLER SIGNATURE</h3>
-        <p style="font-size:12px; text-align:center; margin-bottom:15px;">I confirm this item is not stolen and belongs to me.</p>
+        <h3>SELLER SIGNATURE</h3>
         <canvas id="sig-canvas" width="350" height="200"></canvas>
-        <div class="sig-controls">
-            <button class="btn-clear" onclick="clearSignature()">Clear</button>
-            <button class="btn-save" onclick="saveSignature()">Confirm Signature</button>
-        </div>
-        <button onclick="closeSignature()" style="background:none; border:none; color:white; margin-top:20px; text-decoration:underline;">Cancel</button>
+        <div class="sig-controls"><button class="btn-clear" onclick="clearSignature()">Clear</button><button class="btn-save" onclick="saveSignature()">Confirm</button></div>
     </div>
 
     <div id="ss-container">
-        <button class="btn-back" onclick="showSS(false)">✎ Edit</button>
-        <div class="a4-page">
-            <div class="doc-header">
-                <div class="doc-logo">KS</div>
-                <div style="text-align: right;">
-                    <h1 style="text-decoration: underline; font-size: 15pt; margin:0">Secondhand Mobile Device Purchase Form</h1>
-                    <div style="font-weight: bold; margin-top:2px; font-size: 10pt;">KS Multimedia Pte Ltd</div>
+        <div class="a4-page" id="printable-area">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <img src="./logo.png" alt="" width="400px">
+                <div style="text-align:right;">
+                    <h1 style="text-decoration:underline; font-size:14pt; margin:0;">Secondhand Mobile Device Purchase Form</h1>
+                    <p>(According to Secondhand Goods Dealer Rules)</p>
+                    <div style="font-weight:bold; font-size:9pt;">KS Multimedia Pte Ltd</div>
                 </div>
             </div>
 
             <table>
                 <tr><td class="bg-grey" width="15%">Date:</td><td width="35%"><span class="val" id="out-date"></span></td><td rowspan="4" class="bg-grey" width="15%">Address:</td><td rowspan="4"><span class="val" id="out-addr"></span></td></tr>
                 <tr><td class="bg-grey">Seller Name:</td><td><span class="val" id="out-name"></span></td></tr>
-                <tr><td class="bg-grey">NRIC/FIN:</td><td><span class="val" id="out-nric"></span></td></tr>
-                <tr><td class="bg-grey">Phone No:</td><td><span class="val" id="out-phone"></span></td></tr>
+                <tr><td class="bg-grey">NRIC/FIN:</td><td><span class="val" id="out-nric"></span> </td></tr>
+                <tr><td class="bg-grey">Contact :</td><td><span class="val" id="out-phone"></span></td></tr>
             </table>
 
+            <table><tr><td class="bg-grey" width="15%">Source:</td><td><span class="val" id="out-source-display"></span></td></tr></table>
+
             <table id="out-table">
-                <tr class="bg-grey"><th width="40px">S/N</th><th>Item Description</th><th width="120px">Price (S$)</th></tr>
-                <tr><td style="text-align:center">1</td><td><strong>Model:</strong> <span class="val" id="out-m1"></span><br><strong>IMEI/SN:</strong> <span class="val" id="out-i1"></span> | <strong>Color:</strong> <span class="val" id="out-c1"></span><br><strong>Battery Health:</strong> <span class="val" id="out-b1"></span> | <strong>Condition:</strong> <span class="val" id="out-con1"></span> | <strong>Warranty:</strong> <span class="val" id="out-w1"></span></td><td style="text-align:right;">$<span id="out-p1">0.00</span></td></tr>
-                <tr id="out-row2" style="display:none"><td style="text-align:center">2</td><td><strong>Model:</strong> <span class="val" id="out-m2"></span><br><strong>IMEI/SN:</strong> <span class="val" id="out-i2"></span></td><td style="text-align:right;">$<span id="out-p2">0.00</span></td></tr>
+                <tr class="bg-grey"><th width="35px">S/N</th><th>Description</th><th width="100px">Price (S$)</th></tr>
+                <tr><td style="text-align:center">1</td><td>Model: <span class="val" id="out-m1"></span> | IMEI: <span class="val" id="out-i1"></span> | Color: <span class="val" id="out-c1"></span> | Battery: <span class="val" id="out-b1"></span> | Condition: <span class="val" id="out-con1"></span> | Warranty: <span class="val" id="out-w1"></span></td><td style="text-align:right;">$<span id="out-p1">0.00</span></td></tr>
+                <tr id="out-row2" style="display:none"><td style="text-align:center">2</td><td>Model: <span class="val" id="out-m2"></span> | IMEI: <span class="val" id="out-i2"></span> | Color: <span class="val" id="out-c2"></span> | Battery: <span class="val" id="out-b2"></span> | Condition: <span class="val" id="out-con2"></span> | Warranty: <span class="val" id="out-w2"></span></td><td style="text-align:right;">$<span id="out-p2">0.00</span></td></tr>
                 <tbody id="out-deductions-rows"></tbody>
-                <tr><td colspan="2" style="text-align:right; font-weight:bold">Total Amount Paid</td><td style="text-align:right; font-weight:bold; font-size:12pt; background:#f9f9f9">$<span id="out-total">0.00</span></td></tr>
+                <tr><td colspan="2" style="text-align:right; font-weight:bold">TOTAL PAID</td><td style="text-align:right; font-weight:bold; font-size:11pt; background:#f9f9f9">$<span id="out-total">0.00</span></td></tr>
             </table>
 
             <table>
-                <tr><td class="bg-grey" width="25%">Payment Mode:</td><td><span class="val" id="out-paymethod"></span> <span id="out-paynow-details"></span></td></tr>
-                <tr><td class="bg-grey">Police Record Ref:</td><td><span class="val" id="out-police"></span></td></tr>
+                <tr><td class="bg-grey" width="25%">Payment:</td><td><span class="val" id="out-paymethod"></span> <span id="out-paynow-details"></span></td></tr>
+                <tr><td class="bg-grey">Police Record:</td><td><span class="val" id="out-police"></span></td></tr>
             </table>
 
-            <table style="margin-top:10px">
-                <tr class="bg-grey"><th width="60%">Seller Declaration</th><th width="40%">Seller Signature</th></tr>
+            <table style="margin-top:8px">
+                <tr class="bg-grey"><th width="60%">Declaration</th><th width="40%">Signature</th></tr>
                 <tr>
-                    <td style="font-size: 8.5pt; height:100px; padding: 10px; line-height: 1.4;">
-                        I hereby confirm that this item is not stolen property and truly belongs to me. I am the legal owner and am authorized to sell this item. The information provided above is true and correct to the best of my knowledge.
-                    </td>
+                    <td style="font-size:8pt; height:80px; padding:8px; line-height:1.3;">I confirm this item is not stolen property and truly belongs to me. I am the legal owner authorized to sell it.</td>
                     <td style="text-align:center; vertical-align:middle;">
-                        <button id="btn-open-sig" onclick="openSignature()" style="padding:10px; border:1px dashed #aaa; background:none; cursor:pointer;">Click to Sign</button>
-                        <img id="out-sig-img" src="" alt="Signature">
+                        <button id="btn-open-sig" onclick="openSignature()" style="padding:6px; border:1px dashed #aaa; background:none; cursor:pointer; font-size:8pt;">Click to Sign</button>
+                        <img id="out-sig-img" src="">
                     </td>
                 </tr>
             </table>
         </div>
+
+        <div class="preview-footer">
+            <button class="btn-edit" onclick="showSS(false)">✎ Fix Info</button>
+            <button class="btn-dl" onclick="downloadPDF()">💾 Download A4 PDF</button>
+        </div>
     </div>
 
     <script>
-        // --- BASIC FORM LOGIC ---
         window.onload = () => {
             const d = new Date();
             document.getElementById('out-date').innerText = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
@@ -199,34 +227,37 @@
         }
 
         function sync() {
-            const fields = ['name', 'nric', 'phone', 'addr', 'm1', 'i1', 'c1', 'b1', 'con1', 'w1', 'p1', 'm2', 'i2', 'paymethod', 'pn-name', 'pn-phone', 'police'];
+            const fields = ['name', 'nric', 'phone', 'addr', 'm1', 'i1', 'c1', 'b1', 'con1', 'w1', 'p1', 'm2', 'i2', 'c2', 'b2', 'con2', 'w2', 'p2', 'paymethod', 'pn-name', 'pn-phone', 'police'];
             fields.forEach(id => {
                 const val = document.getElementById('in-' + id)?.value || '';
                 const out = document.getElementById('out-' + id);
                 if(out) out.innerText = val;
             });
+            document.getElementById('out-source-display').innerText = document.getElementById('in-source').value;
+
+            if(document.getElementById('in-paymethod').value === "PayNow") {
+                document.getElementById('out-paynow-details').innerText = `(${document.getElementById('in-pn-name').value} / ${document.getElementById('in-pn-phone').value})`;
+            } else { document.getElementById('out-paynow-details').innerText = ""; }
 
             const reasons = document.querySelectorAll('.d-reason');
             const amts = document.querySelectorAll('.d-amt');
             const outTbody = document.getElementById('out-deductions-rows');
             outTbody.innerHTML = '';
             let totalDeduct = 0;
-
             reasons.forEach((r, i) => {
                 const amt = parseFloat(amts[i].value) || 0;
                 if(amt > 0) {
                     totalDeduct += amt;
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td style="text-align:center" class="minus">-</td><td class="minus"><strong>Deduction:</strong> ${r.value || 'Adjustment'}</td><td style="text-align:right" class="minus">-$${amt.toFixed(2)}</td>`;
+                    tr.innerHTML = `<td style="text-align:center; color:red">-</td><td style="color:red">Deduction: ${r.value || 'Adjustment'}</td><td style="text-align:right; color:red">-$${amt.toFixed(2)}</td>`;
                     outTbody.appendChild(tr);
                 }
             });
-
             const p1 = parseFloat(document.getElementById('in-p1').value) || 0;
             const p2 = (document.getElementById('in-count').value === "2") ? (parseFloat(document.getElementById('in-p2').value) || 0) : 0;
             document.getElementById('out-total').innerText = (p1 + p2 - totalDeduct).toFixed(2);
             document.getElementById('out-p1').innerText = p1.toFixed(2);
-            document.getElementById('out-p2').innerText = p2.toFixed(2);
+            if(document.getElementById('out-p2')) document.getElementById('out-p2').innerText = p2.toFixed(2);
         }
 
         function showSS(active) {
@@ -235,15 +266,30 @@
             if(active) window.scrollTo(0,0);
         }
 
-        // --- SIGNATURE LOGIC ---
+        function downloadPDF() {
+            const element = document.getElementById('printable-area');
+            const name = document.getElementById('in-name').value || 'Form';
+            const opt = {
+                margin: 0,
+                filename: `KS_Purchase_${name}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            // Generate PDF and force single page
+            html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
+                var totalPages = pdf.internal.getNumberOfPages();
+                if (totalPages > 1) { pdf.deletePage(totalPages); }
+            }).save();
+        }
+
         const canvas = document.getElementById('sig-canvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
-
         function openSignature() { document.getElementById('sig-modal').style.display = 'flex'; }
         function closeSignature() { document.getElementById('sig-modal').style.display = 'none'; }
         function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
-
         function saveSignature() {
             const dataUrl = canvas.toDataURL();
             const sigImg = document.getElementById('out-sig-img');
@@ -251,30 +297,20 @@
             sigImg.style.display = 'inline-block';
             document.getElementById('btn-open-sig').style.display = 'none';
             closeSignature();
+            sync();
         }
-
-        // Canvas Drawing Events
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             return { x: clientX - rect.left, y: clientY - rect.top };
         }
-
-        const startDraw = (e) => { drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); };
-        const doDraw = (e) => { if(!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); };
-        const stopDraw = () => drawing = false;
-
-        canvas.addEventListener('mousedown', startDraw);
-        canvas.addEventListener('mousemove', doDraw);
-        window.addEventListener('mouseup', stopDraw);
-        canvas.addEventListener('touchstart', startDraw);
-        canvas.addEventListener('touchmove', doDraw);
-        canvas.addEventListener('touchend', stopDraw);
-
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#000';
+        canvas.addEventListener('mousedown', (e) => { drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); });
+        canvas.addEventListener('mousemove', (e) => { if(!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+        window.addEventListener('mouseup', () => drawing = false);
+        canvas.addEventListener('touchstart', (e) => { drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); e.preventDefault(); });
+        canvas.addEventListener('touchmove', (e) => { if(!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); });
+        ctx.lineWidth = 2; ctx.strokeStyle = '#000';
     </script>
 </body>
 </html>
