@@ -236,42 +236,56 @@
     <script>
         // --- SCANNER LOGIC ---
         let html5QrCode;
-        let activeTargetInput = "";
+let activeTargetInput = "";
 
-        function startScanner(targetId) {
-            activeTargetInput = targetId;
-            document.getElementById('scanner-modal').style.display = 'flex';
-            
-            html5QrCode = new Html5Qrcode("reader");
-            const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+function startScanner(targetId) {
+    activeTargetInput = targetId;
+    document.getElementById('scanner-modal').style.display = 'flex';
 
-            html5QrCode.start(
-                { facingMode: "environment" }, 
-                config, 
-                onScanSuccess
-            ).catch(err => {
-                alert("Camera Error: " + err);
-                stopScanner();
-            });
+    html5QrCode = new Html5Qrcode("reader");
+
+    // Use numeric format IDs directly — avoids the enum reference bug
+    // 6 = CODE_128, which covers IMEI barcodes
+    const config = {
+        fps: 20,
+        qrbox: { width: 300, height: 120 },
+        aspectRatio: 1.0,
+        formatsToSupport: [6]  // 6 = CODE_128
+    };
+
+    html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess
+    ).catch(err => {
+        stopScanner();
+        if (err && err.toString().includes("NotAllowed")) {
+            alert("Camera permission denied. Please allow camera access and try again.");
+        } else {
+            alert("Camera Error: " + err);
         }
+    });
+}
 
-        function onScanSuccess(decodedText) {
-            document.getElementById(activeTargetInput).value = decodedText;
-            sync(); // Update the preview
-            stopScanner();
-            // Optional: Vibrate on success
-            if (navigator.vibrate) navigator.vibrate(200);
-        }
+function onScanSuccess(decodedText) {
+    document.getElementById(activeTargetInput).value = decodedText;
+    sync();
+    stopScanner();
+    if (navigator.vibrate) navigator.vibrate(200);
+}
 
-        function stopScanner() {
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => {
-                    document.getElementById('scanner-modal').style.display = 'none';
-                }).catch(err => console.log(err));
-            } else {
+function stopScanner() {
+    if (html5QrCode) {
+        html5QrCode.stop()
+            .catch(err => console.log("Stop error (safe to ignore):", err))
+            .finally(() => {
+                html5QrCode = null;
                 document.getElementById('scanner-modal').style.display = 'none';
-            }
-        }
+            });
+    } else {
+        document.getElementById('scanner-modal').style.display = 'none';
+    }
+}
 
         // --- EXISTING LOGIC ---
         window.onload = () => {
