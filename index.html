@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KS Multimedia Purchase System</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    
     <style>
         :root { --accent: #2c3e50; --bg: #f8f9fa; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: var(--bg); }
@@ -21,6 +23,17 @@
             font-size: 16px; box-sizing: border-box; outline: none; background: white;
         }
         
+        /* Scanner Button Styling */
+        .scan-container { display: flex; gap: 8px; align-items: flex-end; }
+        .btn-scan { background: #3498db; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 50px; height: 46px; }
+
+        /* Scanner Modal */
+        #scanner-modal {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+            z-index: 3000; flex-direction: column; align-items: center; justify-content: center; color: white;
+        }
+        #reader { width: 100%; max-width: 400px; border-radius: 8px; overflow: hidden; background: black; }
+
         .deduction-entry { display: flex; gap: 8px; margin-bottom: 8px; }
         .deduction-entry input:first-child { flex: 2; }
         .deduction-entry input:last-child { flex: 1; }
@@ -44,17 +57,15 @@
         /* --- PREVIEW & DOWNLOAD MODE --- */
         #ss-container { display: none; background: #555; min-height: 100vh; flex-direction: column; align-items: center; padding: 20px 0; }
         
-        /* STRICT A4 DIMENSIONS TO FORCE 1 PAGE */
         .a4-page { 
             width: 210mm; 
             height: 296mm; 
             background: white; 
-            padding: 10mm 10mm 10mm 10mm; 
+            padding: 10mm; 
             box-sizing: border-box; 
             color: black; 
             position: relative; 
             overflow: hidden; 
-            
         }
         
         table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
@@ -100,7 +111,13 @@
             <div id="dev1-editor">
                 <h3>DEVICE 1</h3>
                 <div class="field"><label>Model</label><input type="text" id="in-m1" oninput="sync()"></div>
-                <div class="field"><label>IMEI/SN</label><input type="text" id="in-i1" oninput="sync()"></div>
+                <div class="field">
+                    <label>IMEI/SN</label>
+                    <div class="scan-container">
+                        <input type="text" id="in-i1" oninput="sync()" placeholder="Scan or type IMEI">
+                        <button type="button" class="btn-scan" onclick="startScanner('in-i1')">📷</button>
+                    </div>
+                </div>
                 <div style="display:flex; gap:10px;">
                     <div class="field" style="flex:1"><label>Color</label><input type="text" id="in-c1" oninput="sync()"></div>
                     <div class="field" style="flex:1"><label>Battery %</label><input type="text" id="in-b1" oninput="sync()"></div>
@@ -115,7 +132,13 @@
             <div id="dev2-editor" style="display:none; margin-top:10px; border-top:1px dashed #ccc; padding-top:10px;">
                 <h3>DEVICE 2</h3>
                 <div class="field"><label>Model</label><input type="text" id="in-m2" oninput="sync()"></div>
-                <div class="field"><label>IMEI/SN</label><input type="text" id="in-i2" oninput="sync()"></div>
+                <div class="field">
+                    <label>IMEI/SN</label>
+                    <div class="scan-container">
+                        <input type="text" id="in-i2" oninput="sync()" placeholder="Scan or type IMEI">
+                        <button type="button" class="btn-scan" onclick="startScanner('in-i2')">📷</button>
+                    </div>
+                </div>
                 <div style="display:flex; gap:10px;">
                     <div class="field" style="flex:1"><label>Color</label><input type="text" id="in-c2" oninput="sync()"></div>
                     <div class="field" style="flex:1"><label>Battery %</label><input type="text" id="in-b2" oninput="sync()"></div>
@@ -146,6 +169,12 @@
         <div class="sticky-bar"><button class="btn-primary" onclick="showSS(true)">Preview & Sign</button></div>
     </div>
 
+    <div id="scanner-modal">
+        <h3>Align Barcode in Frame</h3>
+        <div id="reader"></div>
+        <button onclick="stopScanner()" style="margin-top:20px; background:#e74c3c; color:white; border:none; padding:12px 25px; border-radius:8px;">Close Camera</button>
+    </div>
+
     <div id="sig-modal">
         <h3>SELLER SIGNATURE</h3>
         <canvas id="sig-canvas" width="350" height="200"></canvas>
@@ -155,7 +184,8 @@
     <div id="ss-container">
         <div class="a4-page" id="printable-area">
             <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                <img src="./logo.png" alt="" width="400px">
+                <img src="./logo.png" alt="" width="400px" onerror="this.style.display='none'; document.getElementById('alt-logo').style.display='block';">
+                <div id="alt-logo" style="display:none; border:2.5pt solid black; padding:6px 10px; font-size:20pt; font-weight:bold;">KS</div>
                 <div style="text-align:right;">
                     <h1 style="text-decoration:underline; font-size:14pt; margin:0;">Secondhand Mobile Device Purchase Form</h1>
                     <p>(According to Secondhand Goods Dealer Rules)</p>
@@ -204,6 +234,46 @@
     </div>
 
     <script>
+        // --- SCANNER LOGIC ---
+        let html5QrCode;
+        let activeTargetInput = "";
+
+        function startScanner(targetId) {
+            activeTargetInput = targetId;
+            document.getElementById('scanner-modal').style.display = 'flex';
+            
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                onScanSuccess
+            ).catch(err => {
+                alert("Camera Error: " + err);
+                stopScanner();
+            });
+        }
+
+        function onScanSuccess(decodedText) {
+            document.getElementById(activeTargetInput).value = decodedText;
+            sync(); // Update the preview
+            stopScanner();
+            // Optional: Vibrate on success
+            if (navigator.vibrate) navigator.vibrate(200);
+        }
+
+        function stopScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('scanner-modal').style.display = 'none';
+                }).catch(err => console.log(err));
+            } else {
+                document.getElementById('scanner-modal').style.display = 'none';
+            }
+        }
+
+        // --- EXISTING LOGIC ---
         window.onload = () => {
             const d = new Date();
             document.getElementById('out-date').innerText = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
@@ -277,7 +347,6 @@
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
             
-            // Generate PDF and force single page
             html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
                 var totalPages = pdf.internal.getNumberOfPages();
                 if (totalPages > 1) { pdf.deletePage(totalPages); }
