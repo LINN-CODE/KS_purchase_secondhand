@@ -100,7 +100,7 @@
                 <div class="field" style="flex:1"><label>NRIC/FIN</label><input type="text" id="in-nric" oninput="sync()"></div>
                 <div class="field" style="flex:1"><label>Phone No</label><input type="text" id="in-phone" oninput="sync()"></div>
             </div>
-            <div class="field"><label>Address</label><textarea id="in-addr" rows="2" oninput="sync()"></textarea></div>
+            <div class="field"><label>Address</label><textarea id="in-addr" rows="2" oninput="sync()" style="resize: none;"></textarea></div>
         </div>
 
         <div class="card">
@@ -161,9 +161,19 @@
 
         <div class="card">
             <h3>Payment</h3>
-            <div class="field"><select id="in-paymethod" onchange="togglePayNow(); sync();"><option value="Cash">Cash</option><option value="PayNow">PayNow</option></select></div>
+            <div class="field"><select id="in-paymethod" onchange="togglePayNow(); sync();"><option value="Cash">Cash</option><option value="PayNow">PayNow</option><option value="TradeIn">Trade In</option></select></div>
             <div id="paynow-box" style="display:none;"><div class="field"><input type="text" id="in-pn-name" placeholder="Name" oninput="sync()"></div><div class="field"><input type="text" id="in-pn-phone" placeholder="Phone" oninput="sync()"></div></div>
+            <div id="tradein-box" style="display: none;"><div class="field"><input type="text" id="invoice-number" placeholder="Invoice Number" oninput="sync()"></div></div>
             <div class="field"><label>Police Record</label><input type="text" id="in-police" oninput="sync()"></div>
+            
+        </div>
+
+        <div class="card">
+            <h3>Notes</h3>
+            <div class="field">
+                <textarea type="text" id="in-notes" oninput="sync()" rows="5" style="resize: none;"></textarea>
+            </div>
+
         </div>
 
         <div class="sticky-bar"><button class="btn-primary" onclick="showSS(true)">Preview & Sign</button></div>
@@ -213,6 +223,13 @@
             <table>
                 <tr><td class="bg-grey" width="25%">Payment:</td><td><span class="val" id="out-paymethod"></span> <span id="out-paynow-details"></span></td></tr>
                 <tr><td class="bg-grey">Police Record:</td><td><span class="val" id="out-police"></span></td></tr>
+            </table>
+
+            <table style="margin-top:8px">
+                <tr>
+                    <td class="bg-grey" width="15%">Notes:</td>
+                    <td><span id="out-notes" style="white-space: pre-wrap; font-size:9pt;"></span></td>
+                </tr>
             </table>
 
             <table style="margin-top:8px">
@@ -308,10 +325,11 @@ function stopScanner() {
 
         function togglePayNow() {
             document.getElementById('paynow-box').style.display = (document.getElementById('in-paymethod').value === "PayNow") ? "block" : "none";
+            document.getElementById('tradein-box').style.display = (document.getElementById('in-paymethod').value === "TradeIn") ? "block" : "none";
         }
 
         function sync() {
-            const fields = ['name', 'nric', 'phone', 'addr', 'm1', 'i1', 'c1', 'b1', 'con1', 'w1', 'p1', 'm2', 'i2', 'c2', 'b2', 'con2', 'w2', 'p2', 'paymethod', 'pn-name', 'pn-phone', 'police'];
+            const fields = ['name', 'nric', 'phone', 'addr', 'm1', 'i1', 'c1', 'b1', 'con1', 'w1', 'p1', 'm2', 'i2', 'c2', 'b2', 'con2', 'w2', 'p2', 'paymethod', 'pn-name', 'pn-phone', 'police', 'notes'];
             fields.forEach(id => {
                 const val = document.getElementById('in-' + id)?.value || '';
                 const out = document.getElementById('out-' + id);
@@ -321,6 +339,8 @@ function stopScanner() {
 
             if(document.getElementById('in-paymethod').value === "PayNow") {
                 document.getElementById('out-paynow-details').innerText = `(${document.getElementById('in-pn-name').value} / ${document.getElementById('in-pn-phone').value})`;
+            }else if(document.getElementById('in-paymethod').value === "TradeIn") {
+                document.getElementById('out-paynow-details').innerText = `(Invoice: ${document.getElementById('invoice-number').value})`;
             } else { document.getElementById('out-paynow-details').innerText = ""; }
 
             const reasons = document.querySelectorAll('.d-reason');
